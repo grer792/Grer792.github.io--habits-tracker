@@ -9,7 +9,7 @@ import { SkeletonLeaderboard } from '@/app/components/SkeletonCard'
 import { getIcon } from '@/lib/icons'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Compass } from 'lucide-react'
+import { Compass, Flame, Sparkles } from 'lucide-react'
 
 type GroupMember = {
   user_id: string
@@ -100,7 +100,9 @@ function PodiumCard({ member, place, maxXp }: { member: GroupMember; place: numb
       )}
       <div className="flex items-center gap-2">
         {member.streak > 0 && (
-          <span className="text-xs font-semibold text-orange-400">🔥{member.streak}</span>
+          <span className="flex items-center gap-0.5 text-orange-400 text-xs font-semibold">
+            <Flame size={11} />{member.streak}
+          </span>
         )}
         <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
           {todayDone ? '✓ all done today' : `${member.completedToday}/${member.totalHabits} today`}
@@ -288,7 +290,9 @@ export default function LeaderboardPage() {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       {first.streak > 0 && (
-                        <span className="text-xs font-semibold text-orange-400">🔥{first.streak}</span>
+                        <span className="flex items-center gap-0.5 text-orange-400 text-xs font-semibold">
+                          <Flame size={12} />{first.streak}
+                        </span>
                       )}
                       <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         {first.completedToday === first.totalHabits && first.totalHabits > 0
@@ -298,7 +302,7 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
                   {first.xp > 0 && (
-                    <span className="text-yellow-300 text-2xl select-none flex-shrink-0">✦</span>
+                    <Sparkles size={18} className="text-yellow-300 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 6px rgba(253,224,71,0.5))' }} />
                   )}
                 </div>
               )}
@@ -332,7 +336,9 @@ export default function LeaderboardPage() {
                         <p className="flex-1 font-semibold text-sm text-gray-300 truncate">{member.username}</p>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {member.streak > 0 && (
-                            <span className="text-xs font-semibold text-orange-400">🔥{member.streak}</span>
+                            <span className="flex items-center gap-0.5 text-orange-400 text-xs font-semibold">
+                              <Flame size={11} />{member.streak}
+                            </span>
                           )}
                           {maxXp > 0 && (
                             <div className="w-14 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>

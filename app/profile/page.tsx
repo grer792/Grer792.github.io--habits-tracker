@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { BottomNav } from '@/app/components/BottomNav'
 import { PageTransition } from '@/app/components/PageTransition'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import confetti from 'canvas-confetti'
 
 type Stats = {
   username: string
@@ -37,6 +38,7 @@ function initials(name: string) {
 
 export default function ProfilePage() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [newBadges, setNewBadges] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
@@ -63,13 +65,27 @@ export default function ProfilePage() {
       const personalDone = personalTotal ?? 0
       const groupDone = groupTotal ?? 0
       const bestStreak = Math.max(0, ...((streakRows || []).map(s => s.longest_streak ?? 0)))
-      setStats({
+      const computed: Stats = {
         username: profile?.username || 'Adventurer',
         personalDone,
         groupDone,
         bestStreak,
         groupCount: groupCount ?? 0,
-      })
+      }
+      setStats(computed)
+
+      // Detect newly earned badges
+      const earned = new Set(BADGES.filter(b => b.check(computed)).map(b => b.name))
+      const seen = new Set<string>(JSON.parse(localStorage.getItem('seen_badges') || '[]'))
+      const fresh = new Set([...earned].filter(n => !seen.has(n)))
+      setNewBadges(fresh)
+      localStorage.setItem('seen_badges', JSON.stringify([...earned]))
+      if (fresh.size > 0) {
+        setTimeout(() => {
+          confetti({ particleCount: 90, spread: 80, origin: { y: 0.55 }, colors: ['#fbbf24', '#f59e0b', '#fde68a', '#fff'] })
+        }, 350)
+      }
+
       setLoading(false)
     }
     load()
@@ -176,23 +192,44 @@ export default function ProfilePage() {
             <div className="grid grid-cols-3 gap-3">
               {BADGES.map((badge, i) => {
                 const earned = badge.check(stats)
+                const isNew  = newBadges.has(badge.name)
                 return (
                   <motion.div
                     key={badge.name}
-                    initial={{ opacity: 0, scale: 0.85 }}
+                    initial={{ opacity: 0, scale: isNew ? 0.5 : 0.85 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ ...SPRING, delay: 0.26 + i * 0.05 }}
-                    className="rounded-2xl p-3 flex flex-col items-center text-center gap-1"
+                    transition={isNew
+                      ? { type: 'spring', stiffness: 500, damping: 16, delay: 0.3 + i * 0.05 }
+                      : { ...SPRING, delay: 0.26 + i * 0.05 }
+                    }
+                    className="relative rounded-2xl p-3 flex flex-col items-center text-center gap-1"
                     style={{
                       background: earned ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)',
-                      border: earned ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
+                      border: isNew ? '1px solid rgba(251,191,36,0.6)' : earned ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
+                      boxShadow: isNew ? '0 0 20px rgba(251,191,36,0.25)' : 'none',
                       filter: earned ? 'none' : 'grayscale(1)',
                       opacity: earned ? 1 : 0.45,
                     }}
                   >
+                    {/* Unlock ring pulse */}
+                    <AnimatePresence>
+                      {isNew && (
+                        <motion.div
+                          className="absolute inset-0 rounded-2xl pointer-events-none"
+                          initial={{ opacity: 0.8, scale: 1 }}
+                          animate={{ opacity: 0, scale: 1.35 }}
+                          exit={{}}
+                          transition={{ duration: 0.7, ease: 'easeOut', delay: 0.35 + i * 0.05 }}
+                          style={{ border: '2px solid rgba(251,191,36,0.7)' }}
+                        />
+                      )}
+                    </AnimatePresence>
                     <span className="text-3xl leading-none">{badge.emoji}</span>
                     <p className="text-white text-xs font-bold leading-tight mt-1">{badge.name}</p>
                     <p className="text-gray-500 text-[10px] leading-tight">{badge.desc}</p>
+                    {isNew && (
+                      <span className="text-yellow-400 text-[9px] font-bold uppercase tracking-wide">New!</span>
+                    )}
                   </motion.div>
                 )
               })}

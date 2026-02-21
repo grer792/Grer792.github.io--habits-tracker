@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { Check, X, Trash2, LogOut, Zap, User, Flame, Compass } from 'lucide-react'
+import { Check, X, Trash2, LogOut, Zap, User, Flame, Compass, Sun } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/app/components/BottomNav'
 import { PageTransition } from '@/app/components/PageTransition'
@@ -68,8 +68,34 @@ const TODAY_LABEL = new Date().toLocaleDateString('en-US', { month: 'long', day:
 const TODAY       = new Date().toISOString().split('T')[0]
 const genCode     = () => Math.floor(100000 + Math.random() * 900000).toString()
 
-const CARD_SPRING = { type: 'spring' as const, stiffness: 320, damping: 26 }
+const CARD_SPRING  = { type: 'spring' as const, stiffness: 320, damping: 26 }
 const CHECK_SPRING = { type: 'spring' as const, stiffness: 550, damping: 18 }
+
+const SPARK_CFG = [
+  { x: -16, y: -15, s: 3,   c: '#fde68a', d: 0     },
+  { x:  14, y: -13, s: 2.5, c: '#fbbf24', d: 0.03  },
+  { x:  -5, y: -22, s: 2,   c: '#fef3c7', d: 0.06  },
+  { x:  18, y:  -5, s: 2.5, c: '#fde68a', d: 0.04  },
+  { x:   5, y: -18, s: 2,   c: '#fbbf24', d: 0.08  },
+]
+function SparkleParticles({ done, count = 5 }: { done: boolean; count?: number }) {
+  return (
+    <>
+      {SPARK_CFG.slice(0, count).map((p, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full pointer-events-none"
+          style={{ width: p.s, height: p.s, background: p.c, top: '50%', left: '50%', marginTop: -p.s / 2, marginLeft: -p.s / 2 }}
+          animate={done
+            ? { x: p.x, y: p.y, opacity: 1, scale: 1 }
+            : { x: 0,   y: 0,   opacity: 0, scale: 0 }
+          }
+          transition={{ type: 'spring', stiffness: 420, damping: 20, delay: p.d }}
+        />
+      ))}
+    </>
+  )
+}
 
 export default function DashboardPage() {
   const [habits, setHabits]       = useState<Habit[]>([])
@@ -339,10 +365,9 @@ export default function DashboardPage() {
 
           {/* ── Header ── */}
           <div className="relative flex flex-col items-center mb-8">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-4xl">☀️</span>
+            <div className="flex items-center gap-2.5 mb-1">
+              <Sun size={28} className="text-yellow-400 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 8px rgba(250,204,21,0.5))' }} />
               <h1 className="text-3xl font-bold tracking-tight">Daily Habits</h1>
-              <span className="text-2xl">🍃</span>
             </div>
             <p className="text-gray-400 text-sm">Hey {username}, {TODAY_LABEL}</p>
             <button
@@ -507,7 +532,11 @@ export default function DashboardPage() {
                     <span className={`flex-1 font-bold text-base transition-colors ${done ? 'text-gray-500' : 'text-white'}`}>
                       {habit.name}
                     </span>
-                    {streak > 0 && <span className="text-orange-400 text-xs font-semibold">🔥{streak}</span>}
+                    {streak > 0 && (
+                      <span className="flex items-center gap-0.5 text-orange-400 text-xs font-semibold">
+                        <Flame size={11} />{streak}
+                      </span>
+                    )}
                     <motion.button
                       onClick={() => deleteHabit(habit.id)}
                       initial={{ opacity: 0 }}
@@ -517,26 +546,9 @@ export default function DashboardPage() {
                       <Trash2 size={14} />
                     </motion.button>
 
-                    {/* Sparkle stars */}
+                    {/* Sparkle particles */}
                     <div className="relative flex-shrink-0">
-                      {['✦', '✦', '✦'].map((star, si) => {
-                        const positions = [
-                          { x: -14, y: -16 }, { x: 14, y: -12 }, { x: 2, y: -20 },
-                        ]
-                        return (
-                          <motion.span
-                            key={si}
-                            className="absolute text-yellow-300 text-xs select-none pointer-events-none"
-                            animate={done
-                              ? { opacity: 1, x: positions[si].x, y: positions[si].y, scale: 1 }
-                              : { opacity: 0, x: 0, y: 0, scale: 0 }
-                            }
-                            transition={{ type: 'spring', stiffness: 400, damping: 18, delay: si * 0.04 }}
-                          >
-                            {star}
-                          </motion.span>
-                        )
-                      })}
+                      <SparkleParticles done={done} count={5} />
 
                       {/* Check button */}
                       <motion.button
@@ -644,27 +656,18 @@ export default function DashboardPage() {
                             <span className={`flex-1 font-semibold text-sm transition-colors ${done ? 'text-gray-500' : 'text-blue-100'}`}>
                               {habit.name}
                             </span>
-                            {streak > 0 && <span className="text-orange-400 text-xs">🔥{streak}</span>}
+                            {streak > 0 && (
+                              <span className="flex items-center gap-0.5 text-orange-400 text-xs font-semibold">
+                                <Flame size={10} />{streak}
+                              </span>
+                            )}
                             {isOwner && (
                               <button onClick={() => deleteGroupHabit(habit.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-red-400 mr-1 flex-shrink-0">
                                 <Trash2 size={13} />
                               </button>
                             )}
                             <div className="relative flex-shrink-0">
-                              {['✦', '✦'].map((star, si) => {
-                                const pos = [{ x: -12, y: -12 }, { x: 12, y: -10 }]
-                                return (
-                                  <motion.span
-                                    key={si}
-                                    className="absolute text-yellow-300 text-xs select-none pointer-events-none"
-                                    animate={done
-                                      ? { opacity: 1, x: pos[si].x, y: pos[si].y, scale: 1 }
-                                      : { opacity: 0, x: 0, y: 0, scale: 0 }
-                                    }
-                                    transition={{ type: 'spring', stiffness: 400, damping: 18, delay: si * 0.05 }}
-                                  >{star}</motion.span>
-                                )
-                              })}
+                              <SparkleParticles done={done} count={3} />
                               <motion.button
                                 key={`${habit.id}-${done}`}
                                 onClick={() => toggleGroupHabit(habit.id)}
