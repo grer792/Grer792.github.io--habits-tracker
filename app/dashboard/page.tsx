@@ -802,20 +802,34 @@ export default function DashboardPage() {
 
               {groupTab === 'create' && (
                 <div className="space-y-4">
-                  <input
-                    autoFocus value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && createGroup()}
-                    placeholder="Group name..."
-                    className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-600 text-lg"
-                    style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
-                  />
-                  <textarea
-                    value={newGroupDesc} onChange={e => setNewGroupDesc(e.target.value)}
-                    placeholder="Description (optional)..."
-                    rows={2}
-                    className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-600 text-sm resize-none"
-                    style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
-                  />
+                  <div className="space-y-1">
+                    <input
+                      autoFocus value={newGroupName}
+                      onChange={e => setNewGroupName(e.target.value.slice(0, 30))}
+                      onKeyDown={e => e.key === 'Enter' && createGroup()}
+                      placeholder="Group name..."
+                      maxLength={30}
+                      className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-600 text-lg"
+                      style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
+                    />
+                    <p className={`text-xs text-right pr-1 ${30 - newGroupName.length <= 8 ? 'text-red-400' : 'text-gray-600'}`}>
+                      {30 - newGroupName.length} left
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <textarea
+                      value={newGroupDesc}
+                      onChange={e => setNewGroupDesc(e.target.value.slice(0, 120))}
+                      placeholder="Description (optional)..."
+                      maxLength={120}
+                      rows={2}
+                      className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-600 text-sm resize-none"
+                      style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
+                    />
+                    <p className={`text-xs text-right pr-1 ${120 - newGroupDesc.length <= 20 ? 'text-red-400' : 'text-gray-600'}`}>
+                      {120 - newGroupDesc.length} left
+                    </p>
+                  </div>
                   <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Choose icon</p>
                   <div className="grid grid-cols-6 gap-2 max-h-36 overflow-y-auto pr-1">
                     {ICONS.map(({ name, component: Icon }) => (
