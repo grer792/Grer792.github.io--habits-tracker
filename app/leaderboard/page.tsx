@@ -17,6 +17,25 @@ type GroupMember = {
   xp: number            // all-time completions × 10
   completedToday: number
   totalHabits: number
+  streak: number        // consecutive days with ≥1 group habit completion
+}
+
+function calcStreak(userId: string, logs: { user_id: string; completed_at: string }[]): number {
+  const dates = new Set(logs.filter(l => l.user_id === userId).map(l => l.completed_at))
+  let streak = 0
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  // Allow streak if completed today or yesterday
+  const todayStr = d.toISOString().split('T')[0]
+  if (!dates.has(todayStr)) {
+    d.setDate(d.getDate() - 1)
+    if (!dates.has(d.toISOString().split('T')[0])) return 0
+  }
+  while (dates.has(d.toISOString().split('T')[0])) {
+    streak++
+    d.setDate(d.getDate() - 1)
+  }
+  return streak
 }
 
 type GroupBoard = {
@@ -79,9 +98,14 @@ function PodiumCard({ member, place, maxXp }: { member: GroupMember; place: numb
           <div className="h-full rounded-full" style={{ width: `${xpPct}%`, background: c.bar }} />
         </div>
       )}
-      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-        {todayDone ? '✓ all done today' : `${member.completedToday}/${member.totalHabits} today`}
-      </p>
+      <div className="flex items-center gap-2">
+        {member.streak > 0 && (
+          <span className="text-xs font-semibold text-orange-400">🔥{member.streak}</span>
+        )}
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          {todayDone ? '✓ all done today' : `${member.completedToday}/${member.totalHabits} today`}
+        </p>
+      </div>
     </div>
   )
 }
@@ -140,6 +164,7 @@ export default function LeaderboardPage() {
                 xp: totalCompletions * XP_PER_HABIT,
                 completedToday: groupTodayLogs.filter(l => l.user_id === m.user_id).length,
                 totalHabits: habitIds.length,
+                streak: calcStreak(m.user_id, groupAllLogs),
               }
             })
             .sort((a, b) => b.xp - a.xp || b.completedToday - a.completedToday)
@@ -261,11 +286,16 @@ export default function LeaderboardPage() {
                     <p className="text-yellow-400 text-lg font-bold mt-0.5">
                       {fmtXP(first.xp)} <span className="text-sm font-semibold opacity-70">XP</span>
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                      {first.completedToday === first.totalHabits && first.totalHabits > 0
-                        ? '✓ all done today'
-                        : `${first.completedToday}/${first.totalHabits} today`}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {first.streak > 0 && (
+                        <span className="text-xs font-semibold text-orange-400">🔥{first.streak}</span>
+                      )}
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        {first.completedToday === first.totalHabits && first.totalHabits > 0
+                          ? '✓ all done today'
+                          : `${first.completedToday}/${first.totalHabits} today`}
+                      </p>
+                    </div>
                   </div>
                   {first.xp > 0 && (
                     <span className="text-yellow-300 text-2xl select-none flex-shrink-0">✦</span>
@@ -301,6 +331,9 @@ export default function LeaderboardPage() {
                         </span>
                         <p className="flex-1 font-semibold text-sm text-gray-300 truncate">{member.username}</p>
                         <div className="flex items-center gap-2 flex-shrink-0">
+                          {member.streak > 0 && (
+                            <span className="text-xs font-semibold text-orange-400">🔥{member.streak}</span>
+                          )}
                           {maxXp > 0 && (
                             <div className="w-14 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
                               <div

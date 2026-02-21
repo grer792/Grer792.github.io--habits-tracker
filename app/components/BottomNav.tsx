@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Trophy, Plus, Settings } from 'lucide-react'
+import { Home, Trophy, Plus, User, Settings } from 'lucide-react'
 
 type Props = {
   onAdd?: () => void
@@ -43,6 +43,11 @@ export function BottomNav({ onAdd }: Props) {
       >
         <Plus size={28} className="text-black" strokeWidth={2.5} />
       </button>
+
+      <Link href="/profile" className={`flex flex-col items-center gap-1 transition-all ${active('/profile')}`}>
+        <User size={22} />
+        <span className="text-xs font-medium">Profile</span>
+      </Link>
 
       <Link href="/settings" className={`flex flex-col items-center gap-1 transition-all ${active('/settings')}`}>
         <Settings size={22} />

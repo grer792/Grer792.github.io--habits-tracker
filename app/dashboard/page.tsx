@@ -413,6 +413,41 @@ export default function DashboardPage() {
             </motion.div>
           )}
 
+          {/* ── Weekly Recap ── */}
+          {logs.length > 0 && (() => {
+            const d7 = new Date(); d7.setDate(d7.getDate() - 6)
+            const d14 = new Date(); d14.setDate(d14.getDate() - 13)
+            const weekStart = d7.toISOString().split('T')[0]
+            const lastWeekStart = d14.toISOString().split('T')[0]
+            const thisWeek = logs.filter(l => l.completed_at >= weekStart).length
+            const lastWeek = logs.filter(l => l.completed_at >= lastWeekStart && l.completed_at < weekStart).length
+            const diff = thisWeek - lastWeek
+            const pct = lastWeek > 0 ? Math.round(Math.abs(diff) / lastWeek * 100) : null
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={CARD_SPRING}
+                className="mb-5 rounded-2xl px-4 py-3 flex items-center gap-3"
+                style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <Flame size={18} className="text-orange-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-semibold">This week: {thisWeek} habits done</p>
+                  <p className="text-gray-500 text-xs">
+                    {diff === 0 ? 'Same as last week' : diff > 0
+                      ? `↑ ${pct !== null ? `${pct}% more` : `+${diff}`} than last week`
+                      : `↓ ${pct !== null ? `${pct}% fewer` : `${diff}`} than last week`
+                    }
+                  </p>
+                </div>
+                <p className={`text-sm font-bold flex-shrink-0 ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                  {diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : '~'}
+                </p>
+              </motion.div>
+            )
+          })()}
+
           {/* ── Empty state ── */}
           {habits.length === 0 && groups.length === 0 && (
             <motion.div
