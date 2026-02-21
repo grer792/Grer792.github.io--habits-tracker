@@ -14,6 +14,7 @@ import { Compass } from 'lucide-react'
 type GroupMember = {
   user_id: string
   username: string
+  xp: number            // all-time completions × 10
   completedToday: number
   totalHabits: number
 }
@@ -26,6 +27,8 @@ type GroupBoard = {
 }
 
 const TODAY = new Date().toISOString().split('T')[0]
+
+const XP_PER_HABIT = 10
 
 const PODIUM = [
   {
@@ -54,9 +57,15 @@ const PODIUM = [
   },
 ]
 
-function PodiumCard({ member, place }: { member: GroupMember; place: number }) {
+function fmtXP(xp: number) {
+  if (xp >= 1000) return `${(xp / 1000).toFixed(xp >= 10000 ? 0 : 1)}k`
+  return `${xp}`
+}
+
+function PodiumCard({ member, place, maxXp }: { member: GroupMember; place: number; maxXp: number }) {
   const c = PODIUM[place]
-  const pct = member.totalHabits > 0 ? Math.round((member.completedToday / member.totalHabits) * 100) : 0
+  const xpPct = maxXp > 0 ? Math.round((member.xp / maxXp) * 100) : 0
+  const todayDone = member.totalHabits > 0 && member.completedToday === member.totalHabits
   return (
     <div
       className="rounded-2xl p-4 flex flex-col items-center gap-2 text-center"
@@ -64,12 +73,15 @@ function PodiumCard({ member, place }: { member: GroupMember; place: number }) {
     >
       <span className="text-3xl">{c.medal}</span>
       <p className="font-bold text-white text-sm leading-tight w-full truncate">{member.username}</p>
-      <p className={`text-xs font-semibold ${c.score}`}>{member.completedToday}/{member.totalHabits}</p>
+      <p className={`text-lg font-bold ${c.score}`}>{fmtXP(member.xp)} <span className="text-xs font-semibold opacity-70">XP</span></p>
       {member.totalHabits > 0 && (
         <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.bar }} />
+          <div className="h-full rounded-full" style={{ width: `${xpPct}%`, background: c.bar }} />
         </div>
       )}
+      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+        {todayDone ? '✓ all done today' : `${member.completedToday}/${member.totalHabits} today`}
+      </p>
     </div>
   )
 }
@@ -99,27 +111,39 @@ export default function LeaderboardPage() {
         ])
 
         const allHabitIds = (allGroupHabits || []).map(h => h.id)
-        let todayLogs: { user_id: string; group_habit_id: string }[] = []
+
+        // Fetch ALL logs (not just today) — one query, filter client-side for today
+        let allLogs: { user_id: string; group_habit_id: string; completed_at: string }[] = []
         if (allHabitIds.length > 0) {
           const { data } = await supabase
-            .from('group_habit_logs').select('user_id, group_habit_id')
-            .in('group_habit_id', allHabitIds).eq('completed_at', TODAY)
-          todayLogs = data || []
+            .from('group_habit_logs')
+            .select('user_id, group_habit_id, completed_at')
+            .in('group_habit_id', allHabitIds)
+          allLogs = data || []
         }
+
+        const todayLogs = allLogs.filter(l => l.completed_at === TODAY)
 
         const boards: GroupBoard[] = userGroups.map(group => {
           const habitIds = (allGroupHabits || []).filter(h => h.group_id === group.id).map(h => h.id)
-          const groupLogs = todayLogs.filter(l => habitIds.includes(l.group_habit_id))
+          const groupAllLogs   = allLogs.filter(l => habitIds.includes(l.group_habit_id))
+          const groupTodayLogs = todayLogs.filter(l => habitIds.includes(l.group_habit_id))
+
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const members: GroupMember[] = ((allMembers || []) as any[])
             .filter(m => m.group_id === group.id)
-            .map(m => ({
-              user_id: m.user_id,
-              username: m.profiles?.username || 'Unknown',
-              completedToday: groupLogs.filter(l => l.user_id === m.user_id).length,
-              totalHabits: habitIds.length,
-            }))
-            .sort((a, b) => b.completedToday - a.completedToday)
+            .map(m => {
+              const totalCompletions = groupAllLogs.filter(l => l.user_id === m.user_id).length
+              return {
+                user_id: m.user_id,
+                username: m.profiles?.username || 'Unknown',
+                xp: totalCompletions * XP_PER_HABIT,
+                completedToday: groupTodayLogs.filter(l => l.user_id === m.user_id).length,
+                totalHabits: habitIds.length,
+              }
+            })
+            .sort((a, b) => b.xp - a.xp || b.completedToday - a.completedToday)
+
           return { id: group.id, name: group.name, icon: group.icon || 'Users', members }
         })
         setGroupBoards(boards)
@@ -128,6 +152,7 @@ export default function LeaderboardPage() {
       setLoading(false)
     }
     load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (loading) return (
@@ -170,9 +195,10 @@ export default function LeaderboardPage() {
             <span className="text-3xl">🏆</span>
             <h1 className="text-3xl font-bold tracking-tight">Leaderboard</h1>
           </div>
-          <p className="text-gray-500 text-sm">Who&apos;s on top today?</p>
+          <p className="text-gray-500 text-sm">All-time XP · ranked by total habits completed</p>
         </div>
 
+        {/* Empty state */}
         {groupBoards.length === 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.92 }}
@@ -197,10 +223,11 @@ export default function LeaderboardPage() {
         {/* Per-group boards */}
         {groupBoards.map((board, bi) => {
           const GroupIcon = getIcon(board.icon)
-          const first    = board.members[0]
-          const silver   = board.members[1]
-          const bronze   = board.members[2]
-          const rest     = board.members.slice(3)
+          const first  = board.members[0]
+          const silver = board.members[1]
+          const bronze = board.members[2]
+          const rest   = board.members.slice(3)
+          const maxXp  = first?.xp ?? 0
 
           return (
             <motion.section
@@ -210,7 +237,6 @@ export default function LeaderboardPage() {
               transition={{ type: 'spring', stiffness: 280, damping: 26, delay: bi * 0.08 }}
               className="mb-10"
             >
-
               {/* Group label */}
               <div className="flex items-center gap-2 mb-4">
                 <GroupIcon size={15} className="text-blue-400" />
@@ -232,22 +258,16 @@ export default function LeaderboardPage() {
                   <span className="text-4xl flex-shrink-0">🥇</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-white text-xl truncate">{first.username}</p>
-                    <p className="text-yellow-400 text-sm font-semibold mt-0.5">
-                      {first.completedToday}/{first.totalHabits} completed
+                    <p className="text-yellow-400 text-lg font-bold mt-0.5">
+                      {fmtXP(first.xp)} <span className="text-sm font-semibold opacity-70">XP</span>
                     </p>
-                    {first.totalHabits > 0 && (
-                      <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${Math.round((first.completedToday / first.totalHabits) * 100)}%`,
-                            background: 'linear-gradient(to right, #fbbf24, #f59e0b)',
-                          }}
-                        />
-                      </div>
-                    )}
+                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      {first.completedToday === first.totalHabits && first.totalHabits > 0
+                        ? '✓ all done today'
+                        : `${first.completedToday}/${first.totalHabits} today`}
+                    </p>
                   </div>
-                  {first.completedToday > 0 && (
+                  {first.xp > 0 && (
                     <span className="text-yellow-300 text-2xl select-none flex-shrink-0">✦</span>
                   )}
                 </div>
@@ -256,8 +276,8 @@ export default function LeaderboardPage() {
               {/* 2nd and 3rd — side by side */}
               {(silver || bronze) && (
                 <div className={`grid gap-3 mb-3 ${silver && bronze ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {silver && <PodiumCard member={silver} place={1} />}
-                  {bronze && <PodiumCard member={bronze} place={2} />}
+                  {silver && <PodiumCard member={silver} place={1} maxXp={maxXp} />}
+                  {bronze && <PodiumCard member={bronze} place={2} maxXp={maxXp} />}
                 </div>
               )}
 
@@ -265,7 +285,7 @@ export default function LeaderboardPage() {
               {rest.length > 0 && (
                 <div className="space-y-2">
                   {rest.map((member, i) => {
-                    const pct = member.totalHabits > 0 ? Math.round((member.completedToday / member.totalHabits) * 100) : 0
+                    const xpPct = maxXp > 0 ? Math.round((member.xp / maxXp) * 100) : 0
                     return (
                       <div
                         key={member.user_id}
@@ -281,16 +301,16 @@ export default function LeaderboardPage() {
                         </span>
                         <p className="flex-1 font-semibold text-sm text-gray-300 truncate">{member.username}</p>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          {member.totalHabits > 0 && (
-                            <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                          {maxXp > 0 && (
+                            <div className="w-14 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
                               <div
                                 className="h-full rounded-full"
-                                style={{ width: `${pct}%`, background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }}
+                                style={{ width: `${xpPct}%`, background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }}
                               />
                             </div>
                           )}
-                          <p className="text-gray-500 text-xs font-semibold">
-                            {member.completedToday}/{member.totalHabits}
+                          <p className="text-gray-400 text-xs font-bold w-16 text-right">
+                            {fmtXP(member.xp)} XP
                           </p>
                         </div>
                       </div>
@@ -303,15 +323,15 @@ export default function LeaderboardPage() {
           )
         })}
 
-          {/* Always-visible discover link */}
-          <Link
-            href="/discover"
-            className="flex items-center justify-center gap-2 mt-8 py-3 rounded-2xl text-gray-600 hover:text-gray-400 text-xs font-semibold transition-colors"
-            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <Compass size={14} />
-            Discover public groups
-          </Link>
+        {/* Always-visible discover link */}
+        <Link
+          href="/discover"
+          className="flex items-center justify-center gap-2 mt-8 py-3 rounded-2xl text-gray-600 hover:text-gray-400 text-xs font-semibold transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <Compass size={14} />
+          Discover public groups
+        </Link>
 
       </div>
       </PageTransition>
