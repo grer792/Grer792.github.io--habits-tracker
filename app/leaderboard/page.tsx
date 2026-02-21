@@ -6,14 +6,6 @@ import { useRouter } from 'next/navigation'
 import { BottomNav } from '@/app/components/BottomNav'
 import { getIcon } from '@/lib/icons'
 
-type GlobalEntry = {
-  user_id: string
-  current_streak: number
-  longest_streak: number
-  profiles: { username: string } | null
-  habits: { name: string; icon: string } | null
-}
-
 type GroupMember = {
   user_id: string
   username: string
@@ -32,7 +24,6 @@ const medals = ['🥇', '🥈', '🥉']
 const TODAY = new Date().toISOString().split('T')[0]
 
 export default function LeaderboardPage() {
-  const [global, setGlobal] = useState<GlobalEntry[]>([])
   const [groupBoards, setGroupBoards] = useState<GroupBoard[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
@@ -42,15 +33,6 @@ export default function LeaderboardPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-
-      const { data: globalData } = await supabase
-        .from('streaks')
-        .select('user_id, current_streak, longest_streak, profiles(username), habits(name, icon)')
-        .gt('current_streak', 0)
-        .order('current_streak', { ascending: false })
-        .limit(50)
-
-      setGlobal((globalData as unknown as GlobalEntry[]) || [])
 
       const { data: memberRows } = await supabase
         .from('group_members').select('group_id, groups(id,name,icon)').eq('user_id', user.id)
@@ -112,39 +94,6 @@ export default function LeaderboardPage() {
           <h1 className="text-3xl font-bold">Leaderboard</h1>
           <p className="text-gray-500 mt-1 text-sm">Who&apos;s on top?</p>
         </div>
-
-        {/* Global */}
-        <section className="mb-10">
-          <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-3">🏆 Global Streaks</p>
-          {global.length === 0 ? (
-            <p className="text-gray-700 text-center py-8">No streaks yet — keep tracking!</p>
-          ) : (
-            <div className="space-y-2">
-              {global.map((entry, i) => {
-                const Icon = entry.habits?.icon ? getIcon(entry.habits.icon) : null
-                return (
-                  <div key={`${entry.user_id}-${i}`} className={`flex items-center gap-3 p-4 rounded-2xl border ${
-                    i === 0 ? 'bg-yellow-950/50 border-yellow-900' :
-                    i === 1 ? 'bg-gray-900 border-gray-800' :
-                    i === 2 ? 'bg-orange-950/50 border-orange-900' :
-                    'bg-gray-950 border-gray-900'
-                  }`}>
-                    <span className="text-xl w-8 text-center">{medals[i] ?? `#${i + 1}`}</span>
-                    {Icon && <Icon size={18} className="text-gray-500 flex-shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{entry.profiles?.username ?? 'Unknown'}</p>
-                      <p className="text-gray-500 text-xs truncate">{entry.habits?.name ?? ''}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-orange-400 font-bold">🔥 {entry.current_streak}</p>
-                      <p className="text-gray-600 text-xs">best {entry.longest_streak}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
 
         {/* Group leaderboards */}
         {groupBoards.map(board => {
