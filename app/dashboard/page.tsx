@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { Check, X, Trash2, LogOut, Users, Zap } from 'lucide-react'
+import { Check, X, Trash2, LogOut, Zap, User } from 'lucide-react'
 import { BottomNav } from '@/app/components/BottomNav'
 import { ICONS, getIcon } from '@/lib/icons'
 import confetti from 'canvas-confetti'
@@ -276,51 +276,80 @@ export default function DashboardPage() {
     setShowGroups(true)
   }
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading...</div>
+  if (loading) return (
+    <div
+      className="min-h-screen flex items-center justify-center text-white"
+      style={{ background: 'linear-gradient(160deg, #0b2030 0%, #0e1a35 30%, #07080f 100%)' }}
+    >
+      Loading...
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-md mx-auto px-5 pt-12 pb-36">
+    <div
+      className="min-h-screen text-white relative"
+      style={{ background: 'linear-gradient(160deg, #0b2535 0%, #0d1830 25%, #0a0c1e 60%, #07080f 100%)' }}
+    >
+      {/* Star field overlay */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.85) 1px, transparent 1px)',
+          backgroundSize: '55px 55px',
+          opacity: 0.07,
+        }}
+      />
 
-        {/* Header */}
-        <div className="relative text-center mb-8">
-          <h1 className="text-3xl font-bold">Daily Habits</h1>
-          <p className="text-gray-500 mt-1 text-sm">Hey {username} · {TODAY_LABEL}</p>
-          {/* Groups icon — top right */}
+      <div className="max-w-md mx-auto px-5 pt-12 pb-36 relative z-10">
+
+        {/* ── Header ── */}
+        <div className="relative flex flex-col items-center mb-8">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-4xl">☀️</span>
+            <h1 className="text-3xl font-bold tracking-tight">Daily Habits</h1>
+            <span className="text-2xl">🍃</span>
+          </div>
+          <p className="text-gray-400 text-sm">Hey {username}, {TODAY_LABEL}</p>
+          {/* Avatar / Groups button */}
           <button
             onClick={() => openGroups('join')}
-            className="absolute right-0 top-1 text-gray-600 hover:text-white transition p-1"
+            className="absolute right-0 top-0 w-11 h-11 rounded-full border border-white/20 flex items-center justify-center transition hover:border-white/40"
+            style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}
             title="Groups"
           >
-            <Users size={22} />
+            <User size={20} className="text-gray-300" />
           </button>
         </div>
 
         {/* ── Daily Quests ── */}
         {todayQuests.length > 0 && (
-          <div className="mb-8">
+          <div
+            className="mb-5 rounded-2xl p-4 border border-yellow-500/20"
+            style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(8px)' }}
+          >
             <div className="flex items-center gap-2 mb-3">
-              <Zap size={16} className="text-yellow-400" />
+              <Zap size={15} className="text-yellow-400" />
               <span className="text-yellow-300 font-semibold text-sm uppercase tracking-wider">Level Up Your Game</span>
-              <span className="text-gray-600 text-xs ml-auto">
+              <span className="text-gray-500 text-xs ml-auto">
                 {questLogs.filter(l => l.completed_at === TODAY).length}/{todayQuests.length} done
               </span>
             </div>
-            <div className="divide-y divide-gray-900/50">
+            <div className="space-y-2">
               {todayQuests.map(quest => {
                 const done = questLogs.some(l => l.quest_plan_id === quest.id && l.completed_at === TODAY)
                 const Icon = getIcon(quest.icon || 'Target')
                 return (
-                  <div key={quest.id} className="flex items-center gap-4 py-3">
-                    <Icon size={20} className={done ? 'text-yellow-400' : 'text-gray-600'} />
-                    <span className={`flex-1 font-medium text-sm ${done ? 'text-gray-600 line-through' : 'text-yellow-100'}`}>
+                  <div key={quest.id} className="flex items-center gap-3">
+                    <Icon size={17} className={done ? 'text-yellow-400' : 'text-gray-500'} />
+                    <span className={`flex-1 text-sm font-medium ${done ? 'text-gray-500 line-through' : 'text-yellow-100'}`}>
                       {quest.name}
                     </span>
                     <button
                       onClick={() => toggleQuest(quest.id)}
-                      className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all active:scale-90 ${done ? 'bg-yellow-500 shadow-md shadow-yellow-500/30' : 'border-2 border-gray-800'}`}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 flex-shrink-0 ${done ? 'bg-yellow-400' : 'border border-white/15'}`}
+                      style={done ? { boxShadow: '0 0 14px rgba(250,204,21,0.4)' } : { background: 'rgba(255,255,255,0.05)' }}
                     >
-                      {done && <Check size={18} className="text-black" strokeWidth={3} />}
+                      {done && <Check size={16} className="text-black" strokeWidth={3} />}
                     </button>
                   </div>
                 )
@@ -330,7 +359,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── Personal habits ── */}
-        <div className="divide-y divide-gray-900">
+        <div className="space-y-3">
           {habits.length === 0 && groups.length === 0 && (
             <p className="text-gray-600 text-center py-12">No habits yet — tap + to add one</p>
           )}
@@ -338,22 +367,64 @@ export default function DashboardPage() {
             const done   = logs.some(l => l.habit_id === habit.id && l.completed_at === TODAY)
             const streak = streakFor(habit.id, logs as { habit_id: string; completed_at: string }[], 'habit_id')
             const Icon   = getIcon(habit.icon || 'Star')
+            const fillPct = Math.min((streak / 7) * 100, 100)
             return (
-              <div key={habit.id} className="flex items-center gap-4 py-4 group">
-                <Icon size={22} className={done ? 'text-green-400' : 'text-gray-600'} />
-                <span className={`flex-1 font-semibold text-lg ${done ? 'text-gray-600 line-through' : 'text-white'}`}>
-                  {habit.name}
-                </span>
-                {streak > 0 && <span className="text-orange-400 text-xs font-semibold">🔥{streak}</span>}
-                <button onClick={() => deleteHabit(habit.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-700 hover:text-red-500 mr-1">
-                  <Trash2 size={15} />
-                </button>
-                <button
-                  onClick={() => toggleHabit(habit.id)}
-                  className={`w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center transition-all active:scale-90 ${done ? 'bg-green-500 shadow-lg shadow-green-500/25' : 'border-2 border-gray-800'}`}
-                >
-                  {done && <Check size={22} className="text-black" strokeWidth={3} />}
-                </button>
+              <div
+                key={habit.id}
+                className="rounded-2xl p-4 border transition-all group"
+                style={{
+                  background: done ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.05)',
+                  backdropFilter: 'blur(8px)',
+                  borderColor: done ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.1)',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: done ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)' }}
+                  >
+                    <Icon size={18} className={done ? 'text-green-400' : 'text-gray-400'} />
+                  </div>
+                  <span className={`flex-1 font-bold text-base ${done ? 'text-gray-500' : 'text-white'}`}>
+                    {habit.name}
+                  </span>
+                  {streak > 0 && <span className="text-orange-400 text-xs font-semibold">🔥{streak}</span>}
+                  <button
+                    onClick={() => deleteHabit(habit.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-red-400 mr-1 flex-shrink-0"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  {/* Sparkle checkmark */}
+                  <div className="relative flex-shrink-0">
+                    {done && (
+                      <>
+                        <span className="absolute -top-3 right-1 text-yellow-300 text-xs leading-none select-none pointer-events-none">✦</span>
+                        <span className="absolute top-0 -right-3 text-yellow-200 text-xs leading-none select-none pointer-events-none">✦</span>
+                        <span className="absolute -bottom-2 right-2 text-yellow-300 text-xs leading-none select-none pointer-events-none">✦</span>
+                      </>
+                    )}
+                    <button
+                      onClick={() => toggleHabit(habit.id)}
+                      className="w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-90"
+                      style={done
+                        ? { background: '#4ade80', boxShadow: '0 0 18px rgba(74,222,128,0.45)' }
+                        : { background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.15)' }
+                      }
+                    >
+                      {done && <Check size={20} className="text-black" strokeWidth={3} />}
+                    </button>
+                  </div>
+                </div>
+                {/* Streak progress bar */}
+                {streak > 0 && (
+                  <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${fillPct}%`, background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }}
+                    />
+                  </div>
+                )}
               </div>
             )
           })}
@@ -361,67 +432,114 @@ export default function DashboardPage() {
 
         {/* ── Group sections ── */}
         {groups.map(group => {
-          const habits  = gHabits.filter(h => h.group_id === group.id)
+          const groupHabits = gHabits.filter(h => h.group_id === group.id)
           const isOwner = group.owner_id === userId
           const GroupIcon = getIcon(group.icon || 'Users')
           return (
-            <div key={group.id} className="mt-8">
-              {/* Group header */}
-              <div className="flex items-center gap-2 pb-2 mb-1 border-b border-gray-900">
-                <GroupIcon size={16} className="text-blue-400 flex-shrink-0" />
-                <span className="text-blue-300 font-semibold flex-1">{group.name}</span>
-                <span className="font-mono text-xs text-gray-700 bg-gray-900 px-2 py-0.5 rounded tracking-widest">{group.code}</span>
-                {!isOwner && (
-                  <button onClick={() => leaveGroup(group.id)} className="text-gray-700 hover:text-red-400 transition ml-1" title="Leave group">
-                    <LogOut size={14} />
-                  </button>
-                )}
-              </div>
+            <div key={group.id} className="mt-5 rounded-2xl p-0.5" style={{ background: 'linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff)' }}>
+              <div className="rounded-[14px] p-4" style={{ background: '#0d1525' }}>
 
-              {/* Habits */}
-              <div className="divide-y divide-gray-900/50">
-                {habits.length === 0 && (
-                  <p className="text-gray-700 text-sm py-3">{isOwner ? 'Add habits below.' : 'No habits yet.'}</p>
-                )}
-                {habits.map(habit => {
-                  const done   = gLogs.some(l => l.group_habit_id === habit.id && l.completed_at === TODAY)
-                  const streak = streakFor(habit.id, gLogs as { group_habit_id: string; completed_at: string }[], 'group_habit_id')
-                  return (
-                    <div key={habit.id} className="flex items-center gap-4 py-3 group">
-                      <span className={`flex-1 font-medium ${done ? 'text-gray-600 line-through' : 'text-blue-100'}`}>
-                        {habit.name}
-                      </span>
-                      {streak > 0 && <span className="text-orange-400 text-xs font-semibold">🔥{streak}</span>}
-                      {isOwner && (
-                        <button onClick={() => deleteGroupHabit(habit.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-700 hover:text-red-400 mr-1">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => toggleGroupHabit(habit.id)}
-                        className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all active:scale-90 ${done ? 'bg-blue-500 shadow-md shadow-blue-500/30' : 'border-2 border-gray-800'}`}
-                      >
-                        {done && <Check size={18} className="text-black" strokeWidth={3} />}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {isOwner && (
-                <div className="flex gap-2 mt-2">
-                  <input
-                    value={gHabitInputs[group.id] || ''}
-                    onChange={e => setGHabitInputs(p => ({ ...p, [group.id]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && addGroupHabit(group.id)}
-                    placeholder="Add habit to group..."
-                    className="flex-1 px-3 py-2 bg-gray-950 text-white rounded-xl border border-gray-900 focus:outline-none focus:border-blue-500 placeholder-gray-700 text-sm"
-                  />
-                  <button onClick={() => addGroupHabit(group.id)} className="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-xl text-sm font-semibold transition">
-                    Add
-                  </button>
+                {/* Group header */}
+                <div className="flex items-center gap-2 mb-3">
+                  <GroupIcon size={15} className="text-blue-400 flex-shrink-0" />
+                  <span className="text-blue-200 font-bold flex-1 text-sm">{group.name}</span>
+                  <span
+                    className="font-mono text-xs text-gray-300 px-2 py-0.5 rounded-lg tracking-widest"
+                    style={{ background: 'rgba(255,255,255,0.1)' }}
+                  >
+                    {group.code}
+                  </span>
+                  {!isOwner && (
+                    <button onClick={() => leaveGroup(group.id)} className="text-gray-600 hover:text-red-400 transition ml-1">
+                      <LogOut size={13} />
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {/* Group habits */}
+                <div className="space-y-2">
+                  {groupHabits.length === 0 && (
+                    <p className="text-gray-600 text-sm">{isOwner ? 'Add habits below.' : 'No habits yet.'}</p>
+                  )}
+                  {groupHabits.map(habit => {
+                    const done   = gLogs.some(l => l.group_habit_id === habit.id && l.completed_at === TODAY)
+                    const streak = streakFor(habit.id, gLogs as { group_habit_id: string; completed_at: string }[], 'group_habit_id')
+                    const fillPct = Math.min((streak / 7) * 100, 100)
+                    return (
+                      <div
+                        key={habit.id}
+                        className="rounded-xl p-3 border transition-all group"
+                        style={{
+                          background: done ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.04)',
+                          borderColor: done ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.07)',
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`flex-1 font-semibold text-sm ${done ? 'text-gray-500' : 'text-blue-100'}`}>
+                            {habit.name}
+                          </span>
+                          {streak > 0 && <span className="text-orange-400 text-xs">🔥{streak}</span>}
+                          {isOwner && (
+                            <button
+                              onClick={() => deleteGroupHabit(habit.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-red-400 mr-1 flex-shrink-0"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                          {/* Sparkle checkmark */}
+                          <div className="relative flex-shrink-0">
+                            {done && (
+                              <>
+                                <span className="absolute -top-2 right-1 text-yellow-300 text-xs leading-none select-none pointer-events-none">✦</span>
+                                <span className="absolute top-0 -right-3 text-yellow-200 text-xs leading-none select-none pointer-events-none">✦</span>
+                              </>
+                            )}
+                            <button
+                              onClick={() => toggleGroupHabit(habit.id)}
+                              className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
+                              style={done
+                                ? { background: '#60a5fa', boxShadow: '0 0 14px rgba(96,165,250,0.45)' }
+                                : { background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.12)' }
+                              }
+                            >
+                              {done && <Check size={15} className="text-black" strokeWidth={3} />}
+                            </button>
+                          </div>
+                        </div>
+                        {streak > 0 && (
+                          <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${fillPct}%`, background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {isOwner && (
+                  <div className="flex gap-2 mt-3">
+                    <input
+                      value={gHabitInputs[group.id] || ''}
+                      onChange={e => setGHabitInputs(p => ({ ...p, [group.id]: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && addGroupHabit(group.id)}
+                      placeholder="Add habit to group..."
+                      className="flex-1 px-3 py-2.5 text-white rounded-xl text-sm focus:outline-none placeholder-gray-600"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    />
+                    <button
+                      onClick={() => addGroupHabit(group.id)}
+                      className="px-5 py-2.5 rounded-xl text-sm font-bold text-white transition active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #4d96ff, #c77dff)' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )
         })}
@@ -432,8 +550,15 @@ export default function DashboardPage() {
 
       {/* ── Add habit modal ── */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowAdd(false) }}>
-          <div className="bg-gray-950 rounded-t-3xl w-full max-w-md p-6 pb-12 border-t border-gray-800">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowAdd(false) }}
+        >
+          <div
+            className="w-full max-w-md p-6 pb-12 rounded-t-3xl border-t border-white/10"
+            style={{ background: '#0e1525' }}
+          >
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-xl font-bold">New Habit</h3>
               <button onClick={() => setShowAdd(false)} className="text-gray-600 hover:text-white"><X size={22} /></button>
@@ -442,19 +567,22 @@ export default function DashboardPage() {
               autoFocus value={newHabitName} onChange={e => setNewHabitName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addHabit()}
               placeholder="Habit name..."
-              className="w-full px-4 py-3 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none focus:border-green-500 placeholder-gray-600 mb-5 text-lg"
+              className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-green-500 placeholder-gray-600 mb-5 text-lg"
+              style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
             />
             <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-3">Choose icon</p>
             <div className="grid grid-cols-6 gap-2 mb-6 max-h-44 overflow-y-auto pr-1">
               {ICONS.map(({ name, component: Icon }) => (
                 <button key={name} type="button" onClick={() => setNewHabitIcon(name)}
-                  className={`aspect-square rounded-xl flex items-center justify-center transition-all active:scale-90 ${newHabitIcon === name ? 'bg-green-500 text-black' : 'bg-gray-900 text-gray-500 hover:bg-gray-800 hover:text-white border border-gray-800'}`}>
+                  className={`aspect-square rounded-xl flex items-center justify-center transition-all active:scale-90 ${newHabitIcon === name ? 'bg-green-500 text-black' : 'text-gray-500 hover:text-white'}`}
+                  style={newHabitIcon !== name ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' } : {}}
+                >
                   <Icon size={20} />
                 </button>
               ))}
             </div>
             <button onClick={addHabit} disabled={!newHabitName.trim()}
-              className="w-full py-4 bg-green-500 hover:bg-green-400 disabled:bg-gray-900 disabled:text-gray-600 text-black font-bold rounded-2xl transition-all active:scale-95 text-lg">
+              className="w-full py-4 bg-green-500 hover:bg-green-400 disabled:opacity-30 text-black font-bold rounded-2xl transition-all active:scale-95 text-lg">
               Add Habit
             </button>
           </div>
@@ -463,15 +591,22 @@ export default function DashboardPage() {
 
       {/* ── Groups modal (Create / Join) ── */}
       {showGroups && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowGroups(false) }}>
-          <div className="bg-gray-950 rounded-t-3xl w-full max-w-md p-6 pb-12 border-t border-gray-800">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowGroups(false) }}
+        >
+          <div
+            className="w-full max-w-md p-6 pb-12 rounded-t-3xl border-t border-white/10"
+            style={{ background: '#0e1525' }}
+          >
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-xl font-bold">Groups</h3>
               <button onClick={() => setShowGroups(false)} className="text-gray-600 hover:text-white"><X size={22} /></button>
             </div>
 
             {/* Tab switcher */}
-            <div className="flex bg-gray-900 rounded-xl p-1 mb-6">
+            <div className="flex rounded-xl p-1 mb-6" style={{ background: 'rgba(255,255,255,0.05)' }}>
               <button
                 onClick={() => setGroupTab('create')}
                 className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${groupTab === 'create' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'}`}
@@ -493,20 +628,23 @@ export default function DashboardPage() {
                   autoFocus value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && createGroup()}
                   placeholder="Group name..."
-                  className="w-full px-4 py-3 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none focus:border-blue-500 placeholder-gray-600 text-lg"
+                  className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-600 text-lg"
+                  style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
                 />
                 <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Choose icon</p>
                 <div className="grid grid-cols-6 gap-2 max-h-44 overflow-y-auto pr-1">
                   {ICONS.map(({ name, component: Icon }) => (
                     <button key={name} type="button" onClick={() => setNewGroupIcon(name)}
-                      className={`aspect-square rounded-xl flex items-center justify-center transition-all active:scale-90 ${newGroupIcon === name ? 'bg-blue-500 text-black' : 'bg-gray-900 text-gray-500 hover:bg-gray-800 hover:text-white border border-gray-800'}`}>
+                      className={`aspect-square rounded-xl flex items-center justify-center transition-all active:scale-90 ${newGroupIcon === name ? 'bg-blue-500 text-black' : 'text-gray-500 hover:text-white'}`}
+                      style={newGroupIcon !== name ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' } : {}}
+                    >
                       <Icon size={20} />
                     </button>
                   ))}
                 </div>
                 {createError && <p className="text-red-400 text-sm">{createError}</p>}
                 <button onClick={createGroup} disabled={!newGroupName.trim()}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-900 disabled:text-gray-600 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg">
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg">
                   Create
                 </button>
               </div>
@@ -523,11 +661,12 @@ export default function DashboardPage() {
                   placeholder="000000"
                   maxLength={6}
                   inputMode="numeric"
-                  className="w-full px-4 py-4 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none focus:border-blue-500 placeholder-gray-700 font-mono tracking-[0.5em] text-center text-3xl"
+                  className="w-full px-4 py-4 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-700 font-mono tracking-[0.5em] text-center text-3xl"
+                  style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
                 />
                 {joinError && <p className="text-red-400 text-sm text-center">{joinError}</p>}
                 <button onClick={joinGroup} disabled={joinCode.length < 6}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-900 disabled:text-gray-600 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg">
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg">
                   Join
                 </button>
               </div>
