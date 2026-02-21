@@ -14,11 +14,13 @@ export function BottomNav({ onAdd }: Props) {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md flex items-center justify-around px-6 pt-3 pb-7 z-50"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md flex items-center justify-around px-6 pt-3 z-50"
       style={{
-        background: 'rgba(10,12,25,0.85)',
-        backdropFilter: 'blur(20px)',
+        background: 'rgba(10,12,25,0.88)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
         borderTop: '1px solid rgba(255,255,255,0.07)',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 20px)',
       }}
     >
       <Link href="/dashboard" className={`flex flex-col items-center gap-1 transition-all ${active('/dashboard')}`}>

@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { BottomNav } from '@/app/components/BottomNav'
+import { PageTransition } from '@/app/components/PageTransition'
+import { SkeletonLeaderboard } from '@/app/components/SkeletonCard'
 import { getIcon } from '@/lib/icons'
+import { motion } from 'framer-motion'
 
 type GroupMember = {
   user_id: string
@@ -127,10 +130,17 @@ export default function LeaderboardPage() {
 
   if (loading) return (
     <div
-      className="min-h-screen flex items-center justify-center text-white"
-      style={{ background: 'linear-gradient(160deg, #0b2030 0%, #0e1a35 30%, #07080f 100%)' }}
+      className="min-h-screen text-white relative"
+      style={{ background: 'linear-gradient(160deg, #0b2535 0%, #0d1830 25%, #0a0c1e 60%, #07080f 100%)' }}
     >
-      Loading...
+      <div className="fixed inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.85) 1px, transparent 1px)', backgroundSize: '55px 55px', opacity: 0.07 }} />
+      <div className="max-w-md mx-auto px-5 pt-12 pb-36 relative z-10">
+        <div className="text-center mb-8 animate-pulse">
+          <div className="h-9 w-52 rounded-xl mx-auto mb-2" style={{ background: 'rgba(255,255,255,0.08)' }} />
+          <div className="h-4 w-36 rounded-lg mx-auto" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        </div>
+        <SkeletonLeaderboard />
+      </div>
     </div>
   )
 
@@ -149,6 +159,7 @@ export default function LeaderboardPage() {
         }}
       />
 
+      <PageTransition>
       <div className="max-w-md mx-auto px-5 pt-12 pb-36 relative z-10">
 
         {/* Header */}
@@ -165,7 +176,7 @@ export default function LeaderboardPage() {
         )}
 
         {/* Per-group boards */}
-        {groupBoards.map(board => {
+        {groupBoards.map((board, bi) => {
           const GroupIcon = getIcon(board.icon)
           const first    = board.members[0]
           const silver   = board.members[1]
@@ -173,7 +184,13 @@ export default function LeaderboardPage() {
           const rest     = board.members.slice(3)
 
           return (
-            <section key={board.id} className="mb-10">
+            <motion.section
+              key={board.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 26, delay: bi * 0.08 }}
+              className="mb-10"
+            >
 
               {/* Group label */}
               <div className="flex items-center gap-2 mb-4">
@@ -263,11 +280,12 @@ export default function LeaderboardPage() {
                 </div>
               )}
 
-            </section>
+            </motion.section>
           )
         })}
 
       </div>
+      </PageTransition>
 
       <BottomNav />
     </div>
