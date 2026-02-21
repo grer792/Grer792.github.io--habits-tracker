@@ -20,8 +20,54 @@ type GroupBoard = {
   members: GroupMember[]
 }
 
-const medals = ['🥇', '🥈', '🥉']
 const TODAY = new Date().toISOString().split('T')[0]
+
+const PODIUM = [
+  {
+    medal: '🥇',
+    border: 'rgba(251,191,36,0.55)',
+    glow: '0 0 28px rgba(251,191,36,0.25)',
+    bg: 'rgba(251,191,36,0.08)',
+    bar: 'linear-gradient(to right, #fbbf24, #f59e0b)',
+    score: 'text-yellow-400',
+  },
+  {
+    medal: '🥈',
+    border: 'rgba(156,163,175,0.45)',
+    glow: '0 0 16px rgba(156,163,175,0.15)',
+    bg: 'rgba(156,163,175,0.06)',
+    bar: 'linear-gradient(to right, #9ca3af, #6b7280)',
+    score: 'text-gray-300',
+  },
+  {
+    medal: '🥉',
+    border: 'rgba(180,120,60,0.45)',
+    glow: '0 0 16px rgba(180,120,60,0.15)',
+    bg: 'rgba(180,120,60,0.06)',
+    bar: 'linear-gradient(to right, #d97706, #b45309)',
+    score: 'text-orange-400',
+  },
+]
+
+function PodiumCard({ member, place }: { member: GroupMember; place: number }) {
+  const c = PODIUM[place]
+  const pct = member.totalHabits > 0 ? Math.round((member.completedToday / member.totalHabits) * 100) : 0
+  return (
+    <div
+      className="rounded-2xl p-4 flex flex-col items-center gap-2 text-center"
+      style={{ background: c.bg, backdropFilter: 'blur(10px)', border: `1.5px solid ${c.border}`, boxShadow: c.glow }}
+    >
+      <span className="text-3xl">{c.medal}</span>
+      <p className="font-bold text-white text-sm leading-tight w-full truncate">{member.username}</p>
+      <p className={`text-xs font-semibold ${c.score}`}>{member.completedToday}/{member.totalHabits}</p>
+      {member.totalHabits > 0 && (
+        <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.bar }} />
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function LeaderboardPage() {
   const [groupBoards, setGroupBoards] = useState<GroupBoard[]>([])
@@ -79,62 +125,148 @@ export default function LeaderboardPage() {
     load()
   }, [])
 
-  async function logout() {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading...</div>
+  if (loading) return (
+    <div
+      className="min-h-screen flex items-center justify-center text-white"
+      style={{ background: 'linear-gradient(160deg, #0b2030 0%, #0e1a35 30%, #07080f 100%)' }}
+    >
+      Loading...
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-md mx-auto px-5 pt-12 pb-36">
+    <div
+      className="min-h-screen text-white relative"
+      style={{ background: 'linear-gradient(160deg, #0b2535 0%, #0d1830 25%, #0a0c1e 60%, #07080f 100%)' }}
+    >
+      {/* Star field */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.85) 1px, transparent 1px)',
+          backgroundSize: '55px 55px',
+          opacity: 0.07,
+        }}
+      />
 
+      <div className="max-w-md mx-auto px-5 pt-12 pb-36 relative z-10">
+
+        {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Leaderboard</h1>
-          <p className="text-gray-500 mt-1 text-sm">Who&apos;s on top?</p>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <span className="text-3xl">🏆</span>
+            <h1 className="text-3xl font-bold tracking-tight">Leaderboard</h1>
+          </div>
+          <p className="text-gray-500 text-sm">Who&apos;s on top today?</p>
         </div>
 
-        {/* Group leaderboards */}
+        {groupBoards.length === 0 && (
+          <p className="text-gray-600 text-center py-16">Join a group to see rankings</p>
+        )}
+
+        {/* Per-group boards */}
         {groupBoards.map(board => {
           const GroupIcon = getIcon(board.icon)
+          const first    = board.members[0]
+          const silver   = board.members[1]
+          const bronze   = board.members[2]
+          const rest     = board.members.slice(3)
+
           return (
-            <section key={board.id} className="mb-8">
-              <div className="flex items-center gap-2 mb-3">
-                <GroupIcon size={16} className="text-blue-400" />
-                <p className="text-blue-300 text-xs font-medium uppercase tracking-wider">{board.name}</p>
+            <section key={board.id} className="mb-10">
+
+              {/* Group label */}
+              <div className="flex items-center gap-2 mb-4">
+                <GroupIcon size={15} className="text-blue-400" />
+                <p className="text-blue-300 text-xs font-semibold uppercase tracking-wider">{board.name}</p>
+                <div className="flex-1 h-px" style={{ background: 'rgba(59,130,246,0.2)' }} />
               </div>
-              <div className="space-y-2">
-                {board.members.map((member, i) => (
-                  <div key={member.user_id} className={`flex items-center gap-3 p-4 rounded-2xl border ${
-                    i === 0 && member.completedToday > 0 ? 'bg-blue-950/50 border-blue-900' : 'bg-gray-950 border-gray-900'
-                  }`}>
-                    <span className="text-xl w-8 text-center">
-                      {member.completedToday > 0 && medals[i] ? medals[i] : `#${i + 1}`}
-                    </span>
-                    <p className="flex-1 font-semibold text-blue-100">{member.username}</p>
-                    <div className="text-right">
-                      <p className={`font-bold text-sm ${member.completedToday > 0 ? 'text-blue-300' : 'text-gray-700'}`}>
-                        {member.completedToday}/{member.totalHabits}
-                      </p>
-                      {member.totalHabits > 0 && (
-                        <div className="flex gap-0.5 justify-end mt-1">
-                          {Array.from({ length: Math.min(member.totalHabits, 8) }).map((_, j) => (
-                            <div key={j} className={`w-2 h-2 rounded-full ${j < member.completedToday ? 'bg-blue-400' : 'bg-gray-800'}`} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+
+              {/* 1st place — full-width hero card */}
+              {first && (
+                <div
+                  className="rounded-2xl p-5 flex items-center gap-4 mb-3"
+                  style={{
+                    background: 'rgba(251,191,36,0.08)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1.5px solid rgba(251,191,36,0.55)',
+                    boxShadow: '0 0 32px rgba(251,191,36,0.2)',
+                  }}
+                >
+                  <span className="text-4xl flex-shrink-0">🥇</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white text-xl truncate">{first.username}</p>
+                    <p className="text-yellow-400 text-sm font-semibold mt-0.5">
+                      {first.completedToday}/{first.totalHabits} completed
+                    </p>
+                    {first.totalHabits > 0 && (
+                      <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.round((first.completedToday / first.totalHabits) * 100)}%`,
+                            background: 'linear-gradient(to right, #fbbf24, #f59e0b)',
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                  {first.completedToday > 0 && (
+                    <span className="text-yellow-300 text-2xl select-none flex-shrink-0">✦</span>
+                  )}
+                </div>
+              )}
+
+              {/* 2nd and 3rd — side by side */}
+              {(silver || bronze) && (
+                <div className={`grid gap-3 mb-3 ${silver && bronze ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {silver && <PodiumCard member={silver} place={1} />}
+                  {bronze && <PodiumCard member={bronze} place={2} />}
+                </div>
+              )}
+
+              {/* 4th+ — compact rows */}
+              {rest.length > 0 && (
+                <div className="space-y-2">
+                  {rest.map((member, i) => {
+                    const pct = member.totalHabits > 0 ? Math.round((member.completedToday / member.totalHabits) * 100) : 0
+                    return (
+                      <div
+                        key={member.user_id}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          backdropFilter: 'blur(6px)',
+                          border: '1px solid rgba(255,255,255,0.07)',
+                        }}
+                      >
+                        <span className="text-gray-500 text-sm font-bold w-6 text-center flex-shrink-0">
+                          #{i + 4}
+                        </span>
+                        <p className="flex-1 font-semibold text-sm text-gray-300 truncate">{member.username}</p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {member.totalHabits > 0 && (
+                            <div className="w-16 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${pct}%`, background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }}
+                              />
+                            </div>
+                          )}
+                          <p className="text-gray-500 text-xs font-semibold">
+                            {member.completedToday}/{member.totalHabits}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
             </section>
           )
         })}
 
-        <button onClick={logout} className="w-full py-3 text-gray-700 hover:text-red-400 transition text-sm mt-4">
-          Sign out
-        </button>
       </div>
 
       <BottomNav />
