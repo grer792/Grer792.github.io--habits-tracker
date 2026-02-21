@@ -98,6 +98,14 @@ export default function DashboardPage() {
   const [joinError, setJoinError]           = useState('')
   const [createError, setCreateError]       = useState('')
 
+  // Spam protection
+  const [pending, setPending]     = useState<Set<string>>(new Set())
+  const [isCreating, setIsCreating] = useState(false)
+  const [isJoining, setIsJoining]   = useState(false)
+
+  function addPending(id: string)    { setPending(p => new Set(p).add(id)) }
+  function removePending(id: string) { setPending(p => { const n = new Set(p); n.delete(id); return n }) }
+
   const router   = useRouter()
   const supabase = createClient()
 
@@ -165,7 +173,8 @@ export default function DashboardPage() {
   }
 
   async function toggleHabit(habitId: string) {
-    if (!userId) return
+    if (!userId || pending.has(habitId)) return
+    addPending(habitId)
     const done = logs.some(l => l.habit_id === habitId && l.completed_at === TODAY)
     let next: HabitLog[]
     if (done) {
@@ -183,6 +192,7 @@ export default function DashboardPage() {
       { user_id: userId, habit_id: habitId, current_streak: streak, longest_streak: Math.max(streak, ex?.longest_streak || 0) },
       { onConflict: 'user_id,habit_id' }
     )
+    removePending(habitId)
   }
 
   async function deleteHabit(habitId: string) {
@@ -193,31 +203,37 @@ export default function DashboardPage() {
 
   // ── Groups ─────────────────────────────────────────────────────────────────
   async function createGroup() {
-    if (!newGroupName.trim() || !userId) return
+    if (!newGroupName.trim() || !userId || isCreating) return
+    const ownedCount = groups.filter(g => g.owner_id === userId).length
+    if (ownedCount >= 5) { setCreateError('You can own a maximum of 5 groups.'); return }
+    setIsCreating(true)
     setCreateError('')
     const code = genCode()
     const { data: group, error: err } = await supabase.from('groups')
       .insert({ name: newGroupName.trim(), owner_id: userId, code, icon: newGroupIcon, description: newGroupDesc.trim() || null, is_public: newGroupPublic }).select().single()
-    if (err) { setCreateError(err.message); return }
+    if (err) { setCreateError(err.message); setIsCreating(false); return }
     await supabase.from('group_members').insert({ group_id: group.id, user_id: userId })
     setGroups(p => [...p, group])
     setNewGroupName(''); setNewGroupIcon('Users'); setNewGroupDesc(''); setNewGroupPublic(false)
+    setIsCreating(false)
     setShowGroups(false)
   }
 
   async function joinGroup() {
     const code = joinCode.trim()
-    if (code.length < 6 || !userId) return
+    if (code.length < 6 || !userId || isJoining) return
+    setIsJoining(true)
     setJoinError('')
     const { data: group, error: err } = await supabase.from('groups').select('*').eq('code', code).single()
-    if (err || !group) { setJoinError('Group not found. Check the code.'); return }
-    if (groups.find(g => g.id === group.id)) { setJoinError('You are already in this group.'); return }
+    if (err || !group) { setJoinError('Group not found. Check the code.'); setIsJoining(false); return }
+    if (groups.find(g => g.id === group.id)) { setJoinError('You are already in this group.'); setIsJoining(false); return }
     const { error: joinErr } = await supabase.from('group_members').insert({ group_id: group.id, user_id: userId })
-    if (joinErr) { setJoinError(joinErr.message); return }
+    if (joinErr) { setJoinError(joinErr.message); setIsJoining(false); return }
     const { data: gh } = await supabase.from('group_habits').select('*').eq('group_id', group.id)
     setGroups(p => [...p, group])
     setGHabits(p => [...p, ...(gh || [])])
     setJoinCode('')
+    setIsJoining(false)
     setShowGroups(false)
   }
 
@@ -240,7 +256,8 @@ export default function DashboardPage() {
   }
 
   async function toggleGroupHabit(habitId: string) {
-    if (!userId) return
+    if (!userId || pending.has(habitId)) return
+    addPending(habitId)
     const done = gLogs.some(l => l.group_habit_id === habitId && l.completed_at === TODAY)
     if (done) {
       await supabase.from('group_habit_logs').delete().eq('group_habit_id', habitId).eq('user_id', userId).eq('completed_at', TODAY)
@@ -252,6 +269,7 @@ export default function DashboardPage() {
         triggerEffects(true)
       }
     }
+    removePending(habitId)
   }
 
   async function deleteGroupHabit(habitId: string) {
@@ -261,7 +279,8 @@ export default function DashboardPage() {
   }
 
   async function toggleQuest(questId: string) {
-    if (!userId) return
+    if (!userId || pending.has(questId)) return
+    addPending(questId)
     const done = questLogs.some(l => l.quest_plan_id === questId && l.completed_at === TODAY)
     if (done) {
       await supabase.from('daily_quest_logs').delete().eq('quest_plan_id', questId).eq('user_id', userId).eq('completed_at', TODAY)
@@ -277,6 +296,7 @@ export default function DashboardPage() {
         }
       }
     }
+    removePending(questId)
   }
 
   function openGroups(tab: 'create' | 'join') {
@@ -363,11 +383,12 @@ export default function DashboardPage() {
                       </span>
                       <motion.button
                         onClick={() => toggleQuest(quest.id)}
-                        whileTap={{ scale: 0.78 }}
+                        disabled={pending.has(quest.id)}
+                        whileTap={pending.has(quest.id) ? {} : { scale: 0.78 }}
                         className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                         style={done
-                          ? { background: '#facc15', boxShadow: '0 0 14px rgba(250,204,21,0.4)' }
-                          : { background: 'rgba(255,255,255,0.05)', border: '1.5px solid rgba(255,255,255,0.15)' }
+                          ? { background: '#facc15', boxShadow: '0 0 14px rgba(250,204,21,0.4)', opacity: pending.has(quest.id) ? 0.6 : 1 }
+                          : { background: 'rgba(255,255,255,0.05)', border: '1.5px solid rgba(255,255,255,0.15)', opacity: pending.has(quest.id) ? 0.5 : 1 }
                         }
                         transition={CHECK_SPRING}
                       >
@@ -486,14 +507,15 @@ export default function DashboardPage() {
                       <motion.button
                         key={`${habit.id}-${done}`}
                         onClick={() => toggleHabit(habit.id)}
+                        disabled={pending.has(habit.id)}
                         initial={{ scale: done ? 0.65 : 1 }}
                         animate={{ scale: 1 }}
-                        whileTap={{ scale: 0.78 }}
+                        whileTap={pending.has(habit.id) ? {} : { scale: 0.78 }}
                         transition={CHECK_SPRING}
                         className="w-11 h-11 rounded-full flex items-center justify-center overflow-hidden"
                         style={done
-                          ? { background: '#4ade80', boxShadow: '0 0 20px rgba(74,222,128,0.5)' }
-                          : { background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.15)' }
+                          ? { background: '#4ade80', boxShadow: '0 0 20px rgba(74,222,128,0.5)', opacity: pending.has(habit.id) ? 0.6 : 1 }
+                          : { background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.15)', opacity: pending.has(habit.id) ? 0.5 : 1 }
                         }
                       >
                         <AnimatePresence mode="wait">
@@ -611,14 +633,15 @@ export default function DashboardPage() {
                               <motion.button
                                 key={`${habit.id}-${done}`}
                                 onClick={() => toggleGroupHabit(habit.id)}
+                                disabled={pending.has(habit.id)}
                                 initial={{ scale: done ? 0.65 : 1 }}
                                 animate={{ scale: 1 }}
-                                whileTap={{ scale: 0.78 }}
+                                whileTap={pending.has(habit.id) ? {} : { scale: 0.78 }}
                                 transition={CHECK_SPRING}
                                 className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden"
                                 style={done
-                                  ? { background: '#60a5fa', boxShadow: '0 0 14px rgba(96,165,250,0.5)' }
-                                  : { background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.12)' }
+                                  ? { background: '#60a5fa', boxShadow: '0 0 14px rgba(96,165,250,0.5)', opacity: pending.has(habit.id) ? 0.6 : 1 }
+                                  : { background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.12)', opacity: pending.has(habit.id) ? 0.5 : 1 }
                                 }
                               >
                                 <AnimatePresence mode="wait">
@@ -826,9 +849,9 @@ export default function DashboardPage() {
                     </div>
                   </button>
                   {createError && <p className="text-red-400 text-sm">{createError}</p>}
-                  <button onClick={createGroup} disabled={!newGroupName.trim()}
+                  <button onClick={createGroup} disabled={!newGroupName.trim() || isCreating}
                     className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg">
-                    Create
+                    {isCreating ? 'Creating...' : 'Create'}
                   </button>
                 </div>
               )}
@@ -845,9 +868,9 @@ export default function DashboardPage() {
                     style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
                   />
                   {joinError && <p className="text-red-400 text-sm text-center">{joinError}</p>}
-                  <button onClick={joinGroup} disabled={joinCode.length < 6}
+                  <button onClick={joinGroup} disabled={joinCode.length < 6 || isJoining}
                     className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg">
-                    Join
+                    {isJoining ? 'Joining...' : 'Join'}
                   </button>
                 </div>
               )}
