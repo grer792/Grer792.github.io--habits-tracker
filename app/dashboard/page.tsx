@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { Check, X, Trash2, LogOut, Users } from 'lucide-react'
+import { Check, X, Trash2, LogOut, Users, Zap } from 'lucide-react'
 import { BottomNav } from '@/app/components/BottomNav'
 import { ICONS, getIcon } from '@/lib/icons'
 import confetti from 'canvas-confetti'
@@ -43,11 +43,15 @@ function triggerEffects(isGroup: boolean) {
   }
 }
 
-type Habit         = { id: string; name: string; icon: string }
-type HabitLog      = { habit_id: string; completed_at: string }
-type Group         = { id: string; name: string; owner_id: string; code: string; icon: string }
-type GroupHabit    = { id: string; group_id: string; name: string }
-type GroupHabitLog = { group_habit_id: string; completed_at: string }
+type Habit           = { id: string; name: string; icon: string }
+type HabitLog        = { habit_id: string; completed_at: string }
+type Group           = { id: string; name: string; owner_id: string; code: string; icon: string }
+type GroupHabit      = { id: string; group_id: string; name: string }
+type GroupHabitLog   = { group_habit_id: string; completed_at: string }
+type DailyQuestPlan  = { id: string; day_number: number; name: string; icon: string }
+type DailyQuestLog   = { quest_plan_id: string; completed_at: string }
+
+const QUEST_START_MS = new Date('2026-02-21').getTime()
 
 function streakFor(id: string, logs: { completed_at: string; [k: string]: string }[], key: string): number {
   const dates = new Set(logs.filter(l => l[key] === id).map(l => l.completed_at))
@@ -70,6 +74,8 @@ export default function DashboardPage() {
   const [username, setUsername]   = useState('')
   const [loading, setLoading]     = useState(true)
   const [gHabitInputs, setGHabitInputs] = useState<Record<string, string>>({})
+  const [todayQuests, setTodayQuests]   = useState<DailyQuestPlan[]>([])
+  const [questLogs, setQuestLogs]       = useState<DailyQuestLog[]>([])
 
   // Modals
   const [showAdd, setShowAdd]         = useState(false)
@@ -97,16 +103,30 @@ export default function DashboardPage() {
         { data: logsData },
         { data: profile },
         { data: memberRows },
+        { data: qpData },
+        { data: qlData },
       ] = await Promise.all([
         supabase.from('habits').select('id,name,icon').eq('user_id', user.id).order('created_at'),
         supabase.from('habit_logs').select('habit_id,completed_at').eq('user_id', user.id),
         supabase.from('profiles').select('username').eq('id', user.id).single(),
         supabase.from('group_members').select('group_id, groups(id,name,owner_id,code,icon)').eq('user_id', user.id),
+        supabase.from('daily_quest_plans').select('*').order('day_number'),
+        supabase.from('daily_quest_logs').select('quest_plan_id,completed_at').eq('user_id', user.id),
       ])
 
       setHabits(habitsData || [])
       setLogs(logsData || [])
       setUsername(profile?.username || '')
+
+      const plans = (qpData || []) as DailyQuestPlan[]
+      setQuestLogs((qlData || []) as DailyQuestLog[])
+      if (plans.length > 0) {
+        const maxDay = Math.max(...plans.map(q => q.day_number))
+        const todayMs = new Date().setHours(0, 0, 0, 0)
+        const daysSince = Math.floor((todayMs - QUEST_START_MS) / 86400000)
+        const todayDayNum = (daysSince % maxDay) + 1
+        setTodayQuests(plans.filter(q => q.day_number === todayDayNum))
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const loaded = (memberRows || []).map((r: any) => r.groups).filter(Boolean) as Group[]
@@ -231,6 +251,25 @@ export default function DashboardPage() {
     setGLogs(p => p.filter(l => l.group_habit_id !== habitId))
   }
 
+  async function toggleQuest(questId: string) {
+    if (!userId) return
+    const done = questLogs.some(l => l.quest_plan_id === questId && l.completed_at === TODAY)
+    if (done) {
+      await supabase.from('daily_quest_logs').delete().eq('quest_plan_id', questId).eq('user_id', userId).eq('completed_at', TODAY)
+      setQuestLogs(p => p.filter(l => !(l.quest_plan_id === questId && l.completed_at === TODAY)))
+    } else {
+      const { error } = await supabase.from('daily_quest_logs').insert({ quest_plan_id: questId, user_id: userId, completed_at: TODAY })
+      if (!error) {
+        setQuestLogs(p => [...p, { quest_plan_id: questId, completed_at: TODAY }])
+        if (localStorage.getItem('sound') !== 'false') playCompletionSound()
+        if (localStorage.getItem('vibration') !== 'false') navigator.vibrate?.(50)
+        if (localStorage.getItem('confetti') !== 'false') {
+          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#eab308', '#facc15', '#fde047', '#fef08a'] })
+        }
+      }
+    }
+  }
+
   function openGroups(tab: 'create' | 'join') {
     setGroupTab(tab)
     setJoinCode(''); setJoinError(''); setCreateError('')
@@ -256,6 +295,39 @@ export default function DashboardPage() {
             <Users size={22} />
           </button>
         </div>
+
+        {/* ── Daily Quests ── */}
+        {todayQuests.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap size={16} className="text-yellow-400" />
+              <span className="text-yellow-300 font-semibold text-sm uppercase tracking-wider">Level Up Your Game</span>
+              <span className="text-gray-600 text-xs ml-auto">
+                {questLogs.filter(l => l.completed_at === TODAY).length}/{todayQuests.length} done
+              </span>
+            </div>
+            <div className="divide-y divide-gray-900/50">
+              {todayQuests.map(quest => {
+                const done = questLogs.some(l => l.quest_plan_id === quest.id && l.completed_at === TODAY)
+                const Icon = getIcon(quest.icon || 'Target')
+                return (
+                  <div key={quest.id} className="flex items-center gap-4 py-3">
+                    <Icon size={20} className={done ? 'text-yellow-400' : 'text-gray-600'} />
+                    <span className={`flex-1 font-medium text-sm ${done ? 'text-gray-600 line-through' : 'text-yellow-100'}`}>
+                      {quest.name}
+                    </span>
+                    <button
+                      onClick={() => toggleQuest(quest.id)}
+                      className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-all active:scale-90 ${done ? 'bg-yellow-500 shadow-md shadow-yellow-500/30' : 'border-2 border-gray-800'}`}
+                    >
+                      {done && <Check size={18} className="text-black" strokeWidth={3} />}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Personal habits ── */}
         <div className="divide-y divide-gray-900">
