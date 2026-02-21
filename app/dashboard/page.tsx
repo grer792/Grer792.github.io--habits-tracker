@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { Check, X, Trash2, LogOut, Zap, User, Flame } from 'lucide-react'
+import { Check, X, Trash2, LogOut, Zap, User, Flame, Compass } from 'lucide-react'
+import Link from 'next/link'
 import { BottomNav } from '@/app/components/BottomNav'
 import { PageTransition } from '@/app/components/PageTransition'
 import { SkeletonDashboard } from '@/app/components/SkeletonCard'
@@ -48,7 +49,7 @@ function triggerEffects(isGroup: boolean) {
 
 type Habit           = { id: string; name: string; icon: string }
 type HabitLog        = { habit_id: string; completed_at: string }
-type Group           = { id: string; name: string; owner_id: string; code: string; icon: string }
+type Group           = { id: string; name: string; owner_id: string; code: string; icon: string; description?: string; is_public?: boolean }
 type GroupHabit      = { id: string; group_id: string; name: string }
 type GroupHabitLog   = { group_habit_id: string; completed_at: string }
 type DailyQuestPlan  = { id: string; day_number: number; name: string; icon: string }
@@ -91,6 +92,8 @@ export default function DashboardPage() {
   const [newHabitIcon, setNewHabitIcon]     = useState('Star')
   const [newGroupName, setNewGroupName]     = useState('')
   const [newGroupIcon, setNewGroupIcon]     = useState('Users')
+  const [newGroupDesc, setNewGroupDesc]     = useState('')
+  const [newGroupPublic, setNewGroupPublic] = useState(false)
   const [joinCode, setJoinCode]             = useState('')
   const [joinError, setJoinError]           = useState('')
   const [createError, setCreateError]       = useState('')
@@ -115,7 +118,7 @@ export default function DashboardPage() {
         supabase.from('habits').select('id,name,icon').eq('user_id', user.id).order('created_at'),
         supabase.from('habit_logs').select('habit_id,completed_at').eq('user_id', user.id),
         supabase.from('profiles').select('username').eq('id', user.id).single(),
-        supabase.from('group_members').select('group_id, groups(id,name,owner_id,code,icon)').eq('user_id', user.id),
+        supabase.from('group_members').select('group_id, groups(id,name,owner_id,code,icon,description,is_public)').eq('user_id', user.id),
         supabase.from('daily_quest_plans').select('*').order('day_number'),
         supabase.from('daily_quest_logs').select('quest_plan_id,completed_at').eq('user_id', user.id),
       ])
@@ -194,11 +197,11 @@ export default function DashboardPage() {
     setCreateError('')
     const code = genCode()
     const { data: group, error: err } = await supabase.from('groups')
-      .insert({ name: newGroupName.trim(), owner_id: userId, code, icon: newGroupIcon }).select().single()
+      .insert({ name: newGroupName.trim(), owner_id: userId, code, icon: newGroupIcon, description: newGroupDesc.trim() || null, is_public: newGroupPublic }).select().single()
     if (err) { setCreateError(err.message); return }
     await supabase.from('group_members').insert({ group_id: group.id, user_id: userId })
     setGroups(p => [...p, group])
-    setNewGroupName(''); setNewGroupIcon('Users')
+    setNewGroupName(''); setNewGroupIcon('Users'); setNewGroupDesc(''); setNewGroupPublic(false)
     setShowGroups(false)
   }
 
@@ -542,14 +545,19 @@ export default function DashboardPage() {
                 style={{ background: 'linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff)' }}
               >
                 <div className="rounded-[14px] p-4" style={{ background: '#0d1525' }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <GroupIcon size={15} className="text-blue-400 flex-shrink-0" />
-                    <span className="text-blue-200 font-bold flex-1 text-sm">{group.name}</span>
-                    <span className="font-mono text-xs text-gray-300 px-2 py-0.5 rounded-lg tracking-widest" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                  <div className="flex items-start gap-2 mb-3">
+                    <GroupIcon size={15} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-blue-200 font-bold text-sm">{group.name}</span>
+                      {group.description && (
+                        <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{group.description}</p>
+                      )}
+                    </div>
+                    <span className="font-mono text-xs text-gray-300 px-2 py-0.5 rounded-lg tracking-widest flex-shrink-0" style={{ background: 'rgba(255,255,255,0.1)' }}>
                       {group.code}
                     </span>
                     {!isOwner && (
-                      <button onClick={() => leaveGroup(group.id)} className="text-gray-600 hover:text-red-400 transition ml-1">
+                      <button onClick={() => leaveGroup(group.id)} className="text-gray-600 hover:text-red-400 transition flex-shrink-0">
                         <LogOut size={13} />
                       </button>
                     )}
@@ -669,6 +677,16 @@ export default function DashboardPage() {
             )
           })}
 
+          {/* Discover link */}
+          <Link
+            href="/discover"
+            className="flex items-center justify-center gap-2 mt-8 py-3 rounded-2xl text-gray-600 hover:text-gray-400 text-xs font-semibold transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <Compass size={14} />
+            Discover public groups
+          </Link>
+
         </div>
       </PageTransition>
 
@@ -768,8 +786,15 @@ export default function DashboardPage() {
                     className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-600 text-lg"
                     style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
                   />
+                  <textarea
+                    value={newGroupDesc} onChange={e => setNewGroupDesc(e.target.value)}
+                    placeholder="Description (optional)..."
+                    rows={2}
+                    className="w-full px-4 py-3 text-white rounded-xl border focus:outline-none focus:border-blue-500 placeholder-gray-600 text-sm resize-none"
+                    style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }}
+                  />
                   <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Choose icon</p>
-                  <div className="grid grid-cols-6 gap-2 max-h-44 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-6 gap-2 max-h-36 overflow-y-auto pr-1">
                     {ICONS.map(({ name, component: Icon }) => (
                       <button key={name} type="button" onClick={() => setNewGroupIcon(name)}
                         className={`aspect-square rounded-xl flex items-center justify-center transition-all active:scale-90 ${newGroupIcon === name ? 'bg-blue-500 text-black' : 'text-gray-500 hover:text-white'}`}
@@ -779,6 +804,27 @@ export default function DashboardPage() {
                       </button>
                     ))}
                   </div>
+                  {/* Public toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setNewGroupPublic(p => !p)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${newGroupPublic ? 'rgba(59,130,246,0.4)' : 'rgba(255,255,255,0.1)'}` }}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white text-left">Public group</p>
+                      <p className="text-xs text-gray-500 text-left">Anyone can discover and join</p>
+                    </div>
+                    <div
+                      className="w-11 h-6 rounded-full transition-colors flex-shrink-0 relative"
+                      style={{ background: newGroupPublic ? '#3b82f6' : 'rgba(255,255,255,0.1)' }}
+                    >
+                      <div
+                        className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all"
+                        style={{ left: newGroupPublic ? '1.375rem' : '0.25rem' }}
+                      />
+                    </div>
+                  </button>
                   {createError && <p className="text-red-400 text-sm">{createError}</p>}
                   <button onClick={createGroup} disabled={!newGroupName.trim()}
                     className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg">

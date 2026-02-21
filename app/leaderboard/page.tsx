@@ -8,6 +8,8 @@ import { PageTransition } from '@/app/components/PageTransition'
 import { SkeletonLeaderboard } from '@/app/components/SkeletonCard'
 import { getIcon } from '@/lib/icons'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { Compass } from 'lucide-react'
 
 type GroupMember = {
   user_id: string
@@ -172,7 +174,24 @@ export default function LeaderboardPage() {
         </div>
 
         {groupBoards.length === 0 && (
-          <p className="text-gray-600 text-center py-16">Join a group to see rankings</p>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.1 }}
+            className="flex flex-col items-center text-center py-14 px-4"
+          >
+            <span className="text-5xl mb-4">🏆</span>
+            <h2 className="text-lg font-bold mb-1">No groups yet</h2>
+            <p className="text-gray-500 text-sm mb-6">Join or discover a group to compete<br />with friends on the leaderboard</p>
+            <Link
+              href="/discover"
+              className="flex items-center gap-2 px-7 py-3 rounded-2xl font-bold text-white text-sm"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', boxShadow: '0 0 24px rgba(59,130,246,0.3)' }}
+            >
+              <Compass size={16} />
+              Discover Groups
+            </Link>
+          </motion.div>
         )}
 
         {/* Per-group boards */}
@@ -283,6 +302,16 @@ export default function LeaderboardPage() {
             </motion.section>
           )
         })}
+
+          {/* Always-visible discover link */}
+          <Link
+            href="/discover"
+            className="flex items-center justify-center gap-2 mt-8 py-3 rounded-2xl text-gray-600 hover:text-gray-400 text-xs font-semibold transition-colors"
+            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <Compass size={14} />
+            Discover public groups
+          </Link>
 
       </div>
       </PageTransition>
