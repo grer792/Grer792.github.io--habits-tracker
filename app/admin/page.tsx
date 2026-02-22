@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Trash2, Users, Globe, Lock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const ADMIN_ID = process.env.NEXT_PUBLIC_ADMIN_USER_ID
+const ADMIN_ID = '5f288643-c16c-49a9-8056-238ca40d75b6'
 
 type Group = {
   id: string
